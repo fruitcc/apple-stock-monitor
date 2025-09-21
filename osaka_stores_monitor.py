@@ -6,9 +6,14 @@ import json
 import re
 import signal
 import sys
+import os
 from datetime import datetime
 import cloudscraper
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -201,12 +206,16 @@ class OsakaStoresMonitor:
         logger.info("=" * 60)
         self.email_sent_stores.add(store_name)
 
-    def monitor(self, url, interval=5):
+    def monitor(self, url, interval=None):
         """Main monitoring loop"""
+        # Get interval from environment or use default
+        if interval is None:
+            interval = int(os.getenv('CHECK_INTERVAL', '10'))
+
         logger.info(f"Starting Apple Store Pickup Monitor for Osaka")
         logger.info(f"Target Stores: {', '.join([f'Apple {store}' for store in self.target_stores])}")
         logger.info(f"Check interval: {interval} seconds")
-        logger.info(f"Email: fruitcc@gmail.com")
+        logger.info(f"Email: {os.getenv('EMAIL_TO', 'Not configured')}")
         logger.info("-" * 60)
 
         # Get product parts on first run
@@ -276,7 +285,7 @@ def main():
     url = "https://www.apple.com/jp/shop/buy-iphone/iphone-17-pro/6.9%E3%82%A4%E3%83%B3%E3%83%81%E3%83%87%E3%82%A3%E3%82%B9%E3%83%97%E3%83%AC%E3%82%A4-256gb-%E3%82%B3%E3%82%BA%E3%83%9F%E3%83%83%E3%82%AF%E3%82%AA%E3%83%AC%E3%83%B3%E3%82%B8-sim%E3%83%95%E3%83%AA%E3%83%BC"
 
     monitor = OsakaStoresMonitor()
-    monitor.monitor(url, interval=5)
+    monitor.monitor(url)  # Will use CHECK_INTERVAL from .env or default to 10
 
 if __name__ == "__main__":
     main()

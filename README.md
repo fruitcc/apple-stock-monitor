@@ -42,6 +42,20 @@ sudo apt-get install chromium-browser
 
 ## Configuration
 
+### Check Interval
+
+Set the monitoring interval in your `.env` file:
+
+```env
+# Check interval in seconds (default: 10)
+CHECK_INTERVAL=10  # Check every 10 seconds
+CHECK_INTERVAL=30  # Check every 30 seconds
+CHECK_INTERVAL=60  # Check every minute
+CHECK_INTERVAL=300 # Check every 5 minutes
+```
+
+The monitor will check both stores at this interval. Lower values = more frequent checking but higher resource usage.
+
 ### Email Setup (Gmail)
 
 1. Create an App Password for Gmail:
