@@ -4,8 +4,11 @@ from flask import Flask, render_template, jsonify, request
 from datetime import datetime, timedelta
 import sqlite3
 from database import StockDatabase
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+# Support for reverse proxy with subdirectory
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 db = StockDatabase()
 
 @app.route('/')
