@@ -11,6 +11,7 @@ from datetime import datetime
 import cloudscraper
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from database import StockDatabase
 
 # Load environment variables
 load_dotenv()
@@ -41,6 +42,9 @@ class OsakaStoresMonitor:
         self.target_stores = ["心斎橋", "梅田"]  # Monitor both stores
         self.product_parts = []
         self.store_status = {}  # Track status for each store
+        self.db = StockDatabase()  # Initialize database
+        self.product_id = None
+        self.store_ids = {}  # Store name to ID mapping
 
         # Initialize status for each store
         for store in self.target_stores:
@@ -221,6 +225,16 @@ class OsakaStoresMonitor:
         # Get product parts on first run
         self.product_parts = self.get_product_parts(url)
 
+        # Add product to database
+        product_name = "iPhone 17 Pro Max 6.9インチ 256GB コズミックオレンジ"
+        self.product_id = self.db.add_product(product_name, url, self.product_parts)
+
+        # Add stores to database
+        for store_name in self.target_stores:
+            self.store_ids[store_name] = self.db.add_store(f"Apple {store_name}",
+                                                           STORE_CODES.get(store_name),
+                                                           "Osaka, Japan")
+
         if not self.product_parts:
             logger.error("Failed to extract product parts. Monitor may not work correctly.")
             # Use some default iPhone 17 Pro part numbers as fallback
@@ -247,6 +261,15 @@ class OsakaStoresMonitor:
                 # Update store status
                 self.store_status[store_name]['available'] = available
                 self.store_status[store_name]['status_message'] = status
+
+                # Record to database
+                if self.product_id and store_name in self.store_ids:
+                    self.db.record_availability(
+                        self.product_id,
+                        self.store_ids[store_name],
+                        available,
+                        status
+                    )
 
                 # Display status
                 status_icon = "✅" if available else "❌"

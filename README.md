@@ -10,6 +10,9 @@ Automated monitoring system for Apple product availability with email notificati
 - **Configurable Monitoring**: Customizable check intervals and multiple product support
 - **Error Recovery**: Automatic recovery from failures and browser crashes
 - **Rate Limiting**: Prevents spam with notification intervals
+- **History Tracking**: SQLite database stores all availability checks and status changes
+- **Web Dashboard**: Real-time web interface to view availability timeline and statistics
+- **API Endpoints**: RESTful API for accessing availability data programmatically
 
 ## Anti-Crawling Countermeasures
 
@@ -30,6 +33,9 @@ cd apple-stock-monitor
 
 # Install dependencies
 pip3 install -r requirements.txt
+
+# Initialize database (automatic on first run)
+python3 database.py
 
 # Install Chrome/Chromium if not already installed
 # On macOS:
@@ -71,6 +77,36 @@ EMAIL_TO=fruitcc@gmail.com
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 ```
+
+## Web Dashboard
+
+### Starting with Web Interface
+
+```bash
+# Quick start with both monitor and web dashboard
+./start_with_web.sh
+
+# Or manually:
+python3 osaka_stores_monitor.py &  # Run monitor in background
+python3 app.py &                   # Run Flask web app
+```
+
+Access the web dashboard at: **http://127.0.0.1:5000**
+
+The dashboard provides:
+- **Current Status**: Real-time availability status for all products and stores
+- **Timeline View**: Historical availability data with filtering options
+- **Change History**: Track when products become available/unavailable
+- **Auto-refresh**: Updates every 30 seconds automatically
+
+### API Endpoints
+
+- `GET /api/current-status` - Current availability for all products/stores
+- `GET /api/availability-timeline?hours=24` - Timeline of checks (filterable)
+- `GET /api/availability-changes?days=7` - Status change history
+- `GET /api/products` - List all monitored products
+- `GET /api/stores` - List all monitored stores
+- `GET /api/availability-stats/<product_id>/<store_id>?days=7` - Statistics
 
 ## Usage
 

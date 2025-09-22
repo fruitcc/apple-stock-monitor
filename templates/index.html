@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple Stock Monitor - Availability Timeline</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(to bottom, #f5f5f7, #ffffff);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #1d1d1f;
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .store-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 8px;
+        }
+
+        .product-name {
+            font-size: 14px;
+            color: #86868b;
+            margin-bottom: 15px;
+        }
+
+        .availability-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .available {
+            background: #34c759;
+        }
+
+        .unavailable {
+            background: #ff3b30;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .status-text {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .status-message {
+            font-size: 14px;
+            color: #6e6e73;
+            margin-top: 5px;
+        }
+
+        .last-checked {
+            font-size: 12px;
+            color: #86868b;
+            margin-top: 10px;
+        }
+
+        .timeline-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            background: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .timeline-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f5;
+            transition: background-color 0.2s;
+        }
+
+        .timeline-item:hover {
+            background-color: #f9f9fc;
+        }
+
+        .timeline-item:last-child {
+            border-bottom: none;
+        }
+
+        .timeline-time {
+            font-size: 14px;
+            color: #6e6e73;
+            min-width: 150px;
+        }
+
+        .timeline-store {
+            font-weight: 500;
+            color: #1d1d1f;
+            min-width: 150px;
+        }
+
+        .timeline-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .change-indicator {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .became-available {
+            background: #d1f4d8;
+            color: #00c853;
+        }
+
+        .became-unavailable {
+            background: #ffe5e5;
+            color: #ff3b30;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f5f5f7;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #86868b;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .refresh-button {
+            padding: 8px 16px;
+            background: #007aff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .refresh-button:hover {
+            background: #0056cc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #86868b;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007aff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #86868b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍎 Apple Stock Monitor</h1>
+
+        <!-- Current Status Section -->
+        <div class="timeline-section">
+            <div class="section-title">
+                Current Status
+                <button class="refresh-button" onclick="refreshData()">🔄 Refresh</button>
+            </div>
+            <div id="statusGrid" class="status-grid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading current status...
+                </div>
+            </div>
+        </div>
+
+        <!-- Availability Changes Section -->
+        <div class="timeline-section">
+            <div class="section-title">Recent Availability Changes</div>
+            <div class="filter-controls">
+                <select id="changeProductFilter" class="filter-select" onchange="loadChanges()">
+                    <option value="">All Products</option>
+                </select>
+                <select id="changeStoreFilter" class="filter-select" onchange="loadChanges()">
+                    <option value="">All Stores</option>
+                </select>
+                <select id="changeDaysFilter" class="filter-select" onchange="loadChanges()">
+                    <option value="1">Last 24 hours</option>
+                    <option value="7" selected>Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                </select>
+            </div>
+            <div id="changesContainer" class="timeline-container">
+                <div class="loading">Loading changes...</div>
+            </div>
+        </div>
+
+        <!-- Timeline Section -->
+        <div class="timeline-section">
+            <div class="section-title">Availability Timeline</div>
+            <div class="filter-controls">
+                <select id="productFilter" class="filter-select" onchange="loadTimeline()">
+                    <option value="">All Products</option>
+                </select>
+                <select id="storeFilter" class="filter-select" onchange="loadTimeline()">
+                    <option value="">All Stores</option>
+                </select>
+                <select id="hoursFilter" class="filter-select" onchange="loadTimeline()">
+                    <option value="6">Last 6 hours</option>
+                    <option value="24" selected>Last 24 hours</option>
+                    <option value="48">Last 48 hours</option>
+                    <option value="168">Last 7 days</option>
+                </select>
+            </div>
+            <div id="timelineContainer" class="timeline-container">
+                <div class="loading">Loading timeline...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let products = [];
+        let stores = [];
+
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                products = await response.json();
+                updateProductFilters();
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        }
+
+        async function loadStores() {
+            try {
+                const response = await fetch('/api/stores');
+                stores = await response.json();
+                updateStoreFilters();
+            } catch (error) {
+                console.error('Error loading stores:', error);
+            }
+        }
+
+        function updateProductFilters() {
+            const filters = ['productFilter', 'changeProductFilter'];
+            filters.forEach(filterId => {
+                const select = document.getElementById(filterId);
+                select.innerHTML = '<option value="">All Products</option>';
+                products.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product.id;
+                    option.textContent = product.product_name;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        function updateStoreFilters() {
+            const filters = ['storeFilter', 'changeStoreFilter'];
+            filters.forEach(filterId => {
+                const select = document.getElementById(filterId);
+                select.innerHTML = '<option value="">All Stores</option>';
+                stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store.id;
+                    option.textContent = store.store_name;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        async function loadCurrentStatus() {
+            try {
+                const response = await fetch('/api/current-status');
+                const data = await response.json();
+
+                const statusGrid = document.getElementById('statusGrid');
+
+                if (data.length === 0) {
+                    statusGrid.innerHTML = '<div class="no-data">No monitoring data available yet</div>';
+                    return;
+                }
+
+                statusGrid.innerHTML = data.map(item => `
+                    <div class="status-card">
+                        <div class="store-name">${item.store_name || 'Unknown Store'}</div>
+                        <div class="product-name">${item.product_name || 'Unknown Product'}</div>
+                        <div class="availability-status">
+                            <div class="status-indicator ${item.is_available ? 'available' : 'unavailable'}"></div>
+                            <div class="status-text">${item.is_available ? 'Available' : 'Not Available'}</div>
+                        </div>
+                        ${item.status_message ? `<div class="status-message">${item.status_message}</div>` : ''}
+                        <div class="last-checked">Last checked: ${item.checked_at ? formatTimeAgo(item.checked_at) : 'Never'}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading status:', error);
+                document.getElementById('statusGrid').innerHTML = '<div class="no-data">Error loading status</div>';
+            }
+        }
+
+        async function loadTimeline() {
+            const productId = document.getElementById('productFilter').value;
+            const storeId = document.getElementById('storeFilter').value;
+            const hours = document.getElementById('hoursFilter').value;
+
+            const params = new URLSearchParams();
+            if (productId) params.append('product_id', productId);
+            if (storeId) params.append('store_id', storeId);
+            params.append('hours', hours);
+
+            try {
+                const response = await fetch(`/api/availability-timeline?${params}`);
+                const data = await response.json();
+
+                const container = document.getElementById('timelineContainer');
+
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="no-data">No timeline data available</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(item => `
+                    <div class="timeline-item">
+                        <div class="timeline-time">${formatDateTime(item.checked_at)}</div>
+                        <div class="timeline-store">${item.store_name}</div>
+                        <div class="timeline-status">
+                            <div class="status-indicator ${item.is_available ? 'available' : 'unavailable'}"></div>
+                            <span>${item.is_available ? 'Available' : 'Not Available'}</span>
+                            ${item.status_message ? ` - ${item.status_message}` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading timeline:', error);
+                document.getElementById('timelineContainer').innerHTML = '<div class="no-data">Error loading timeline</div>';
+            }
+        }
+
+        async function loadChanges() {
+            const productId = document.getElementById('changeProductFilter').value;
+            const storeId = document.getElementById('changeStoreFilter').value;
+            const days = document.getElementById('changeDaysFilter').value;
+
+            const params = new URLSearchParams();
+            if (productId) params.append('product_id', productId);
+            if (storeId) params.append('store_id', storeId);
+            params.append('days', days);
+
+            try {
+                const response = await fetch(`/api/availability-changes?${params}`);
+                const data = await response.json();
+
+                const container = document.getElementById('changesContainer');
+
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="no-data">No availability changes detected</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(item => `
+                    <div class="timeline-item">
+                        <div class="timeline-time">${formatDateTime(item.changed_at)}</div>
+                        <div class="timeline-store">${item.store_name}</div>
+                        <div class="timeline-status">
+                            <span class="change-indicator ${item.new_status ? 'became-available' : 'became-unavailable'}">
+                                ${item.new_status ? '✅ Became Available' : '❌ Became Unavailable'}
+                            </span>
+                            ${item.status_message ? `<span style="margin-left: 10px; color: #6e6e73;">${item.status_message}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading changes:', error);
+                document.getElementById('changesContainer').innerHTML = '<div class="no-data">Error loading changes</div>';
+            }
+        }
+
+        function formatDateTime(dateTimeStr) {
+            const date = new Date(dateTimeStr);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatTimeAgo(dateTimeStr) {
+            const date = new Date(dateTimeStr);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return `${seconds} seconds ago`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+            return `${Math.floor(seconds / 86400)} days ago`;
+        }
+
+        async function refreshData() {
+            await loadCurrentStatus();
+            await loadTimeline();
+            await loadChanges();
+        }
+
+        // Initial load
+        async function init() {
+            await loadProducts();
+            await loadStores();
+            await refreshData();
+        }
+
+        // Load data on page load
+        init();
+
+        // Auto-refresh every 30 seconds
+        setInterval(refreshData, 30000);
+    </script>
+</body>
+</html>

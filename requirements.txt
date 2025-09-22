@@ -5,3 +5,4 @@ undetected-chromedriver==3.5.4
 python-dotenv==1.0.0
 cloudscraper==1.2.71
 fake-useragent==1.4.0
+flask==3.0.0

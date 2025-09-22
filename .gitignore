@@ -32,6 +32,15 @@ wheels/
 # Logs
 *.log
 apple_monitor.log
+flask.log
+monitor.log
+monitor_test.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+stock_history.db
 
 # IDE
 .vscode/
