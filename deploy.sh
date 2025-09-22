@@ -23,7 +23,26 @@ sudo apt-get upgrade -y
 
 # Install Python and dependencies
 echo "Installing Python and system dependencies..."
-sudo apt-get install -y python3 python3-pip python3-venv git chromium-browser
+sudo apt-get install -y python3 python3-pip python3-venv git
+
+# Install Chromium (package name varies by distribution)
+echo "Installing Chromium browser..."
+if command -v chromium-browser &> /dev/null || command -v chromium &> /dev/null; then
+    echo "Chromium already installed"
+elif sudo apt-get install -y chromium-browser 2>/dev/null; then
+    echo "Installed chromium-browser"
+elif sudo apt-get install -y chromium 2>/dev/null; then
+    echo "Installed chromium"
+else
+    # For Ubuntu 20.04+ and Debian, try snap
+    echo "Trying snap installation..."
+    sudo snap install chromium 2>/dev/null || {
+        echo "Warning: Could not install Chromium automatically."
+        echo "Please install Chromium manually:"
+        echo "  Ubuntu/Debian: sudo apt-get install chromium"
+        echo "  Or: sudo snap install chromium"
+    }
+fi
 
 # Clone or update repository
 if [ ! -d "$HOME/apple-stock-monitor" ]; then
