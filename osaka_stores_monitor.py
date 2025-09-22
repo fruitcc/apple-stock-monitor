@@ -12,6 +12,7 @@ import cloudscraper
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from database import StockDatabase
+from multi_email_notifier import MultiEmailNotifier
 
 # Load environment variables
 load_dotenv()
@@ -45,6 +46,14 @@ class OsakaStoresMonitor:
         self.db = StockDatabase()  # Initialize database
         self.product_id = None
         self.store_ids = {}  # Store name to ID mapping
+
+        # Initialize email notifier
+        try:
+            self.email_notifier = MultiEmailNotifier()
+            logger.info("Email notifier initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize email notifier: {e}")
+            self.email_notifier = None
 
         # Initialize status for each store
         for store in self.target_stores:
@@ -203,10 +212,22 @@ class OsakaStoresMonitor:
         """Send notification when product becomes available at a store"""
         logger.info("=" * 60)
         logger.info(f"🎉 PICKUP NOW AVAILABLE at Apple {store_name}!")
-        logger.info(f"Email notification to: fruitcc@gmail.com")
         logger.info(f"Store: Apple {store_name}")
         logger.info(f"Status: {status}")
         logger.info(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+        # Send email notification
+        if self.email_notifier:
+            product_name = "iPhone 17 Pro Max 6.9インチ 256GB コズミックオレンジ"
+            product_url = "https://www.apple.com/jp/shop/buy-iphone/iphone-17-pro"
+            try:
+                self.email_notifier.send_pickup_alert(store_name, product_name, product_url, status)
+                logger.info(f"✅ Email notification sent successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to send email notification: {e}")
+        else:
+            logger.warning("Email notifier not configured - notification not sent")
+
         logger.info("=" * 60)
         self.email_sent_stores.add(store_name)
 
