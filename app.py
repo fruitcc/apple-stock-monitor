@@ -3,6 +3,7 @@
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime, timedelta
 import sqlite3
+import pytz
 from database import StockDatabase
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -60,12 +61,31 @@ def get_stores():
     stores = db.get_all_stores()
     return jsonify(stores)
 
+def convert_to_jst(datetime_str):
+    """Convert UTC datetime string to JST"""
+    if not datetime_str:
+        return None
+
+    # Parse the datetime (assuming it's in UTC from SQLite)
+    dt = datetime.fromisoformat(datetime_str.replace(' ', 'T'))
+
+    # If datetime is naive, assume it's UTC
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+
+    # Convert to JST
+    jst = pytz.timezone('Asia/Tokyo')
+    dt_jst = dt.astimezone(jst)
+
+    return dt_jst
+
 @app.template_filter('format_datetime')
 def format_datetime(value):
-    """Format datetime for display"""
+    """Format datetime for display in JST"""
     if value:
-        dt = datetime.fromisoformat(value)
-        return dt.strftime('%Y-%m-%d %H:%M:%S')
+        dt_jst = convert_to_jst(value)
+        if dt_jst:
+            return dt_jst.strftime('%Y-%m-%d %H:%M:%S JST')
     return ''
 
 @app.template_filter('time_ago')
@@ -74,9 +94,14 @@ def time_ago(value):
     if not value:
         return 'never'
 
-    dt = datetime.fromisoformat(value)
-    now = datetime.now()
-    diff = now - dt
+    dt_jst = convert_to_jst(value)
+    if not dt_jst:
+        return 'unknown'
+
+    # Get current time in JST
+    jst = pytz.timezone('Asia/Tokyo')
+    now = datetime.now(jst)
+    diff = now - dt_jst
 
     seconds = diff.total_seconds()
 

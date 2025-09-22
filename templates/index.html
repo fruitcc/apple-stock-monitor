@@ -276,6 +276,9 @@
 <body>
     <div class="container">
         <h1>🍎 Apple Stock Monitor</h1>
+        <p style="text-align: center; color: #86868b; margin-top: -10px; margin-bottom: 20px;">
+            All times displayed in Japan Standard Time (JST)
+        </p>
 
         <!-- Current Status Section -->
         <div class="timeline-section">
@@ -495,18 +498,36 @@
         }
 
         function formatDateTime(dateTimeStr) {
-            const date = new Date(dateTimeStr);
-            return date.toLocaleString('en-US', {
+            // Parse the date assuming it's in UTC from the database
+            let date = new Date(dateTimeStr);
+
+            // If the string doesn't have timezone info, treat it as UTC
+            if (!dateTimeStr.includes('Z') && !dateTimeStr.includes('+')) {
+                date = new Date(dateTimeStr + 'Z');
+            }
+
+            // Format in Japan time (JST)
+            return date.toLocaleString('ja-JP', {
+                timeZone: 'Asia/Tokyo',
                 year: 'numeric',
-                month: 'short',
-                day: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
                 hour: '2-digit',
-                minute: '2-digit'
-            });
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }) + ' JST';
         }
 
         function formatTimeAgo(dateTimeStr) {
-            const date = new Date(dateTimeStr);
+            // Parse the date assuming it's in UTC
+            let date = new Date(dateTimeStr);
+
+            // If the string doesn't have timezone info, treat it as UTC
+            if (!dateTimeStr.includes('Z') && !dateTimeStr.includes('+')) {
+                date = new Date(dateTimeStr + 'Z');
+            }
+
             const now = new Date();
             const seconds = Math.floor((now - date) / 1000);
 

@@ -7,7 +7,7 @@ import re
 import signal
 import sys
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import cloudscraper
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
