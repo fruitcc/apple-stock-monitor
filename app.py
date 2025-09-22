@@ -87,4 +87,9 @@ def time_ago(value):
         return f"{int(seconds / 86400)} days ago"
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Check if running in production
+    import sys
+    if '--production' in sys.argv:
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    else:
+        app.run(debug=True, port=5000)
