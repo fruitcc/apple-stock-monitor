@@ -120,6 +120,89 @@
             margin-bottom: 30px;
         }
 
+        .availability-graph {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9fc;
+            border-radius: 8px;
+        }
+
+        .graph-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .graph-label {
+            min-width: 150px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1d1d1f;
+        }
+
+        .graph-blocks {
+            display: flex;
+            flex: 1;
+            gap: 1px;
+            height: 30px;
+            background: #e5e5ea;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .time-block {
+            flex: 1;
+            cursor: pointer;
+            transition: transform 0.1s;
+            position: relative;
+        }
+
+        .time-block:hover {
+            transform: scaleY(1.2);
+            z-index: 10;
+        }
+
+        .time-block.available {
+            background: #34c759;
+        }
+
+        .time-block.unavailable {
+            background: #ff3b30;
+        }
+
+        .time-block.no-data {
+            background: #e5e5ea;
+        }
+
+        .graph-timeline {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 0 160px;
+            font-size: 12px;
+            color: #86868b;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 1000;
+            pointer-events: none;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .tooltip.show {
+            opacity: 1;
+        }
+
         .section-title {
             font-size: 24px;
             font-weight: 600;
@@ -315,25 +398,25 @@
             </div>
         </div>
 
-        <!-- Timeline Section -->
+        <!-- Availability Graph Section -->
         <div class="timeline-section">
-            <div class="section-title">Availability Timeline</div>
+            <div class="section-title">Availability Timeline Graph</div>
             <div class="filter-controls">
-                <select id="productFilter" class="filter-select" onchange="loadTimeline()">
-                    <option value="">All Products</option>
-                </select>
-                <select id="storeFilter" class="filter-select" onchange="loadTimeline()">
-                    <option value="">All Stores</option>
-                </select>
-                <select id="hoursFilter" class="filter-select" onchange="loadTimeline()">
+                <select id="graphHoursFilter" class="filter-select" onchange="loadAvailabilityGraph()">
+                    <option value="1">Last hour</option>
                     <option value="6">Last 6 hours</option>
                     <option value="24" selected>Last 24 hours</option>
                     <option value="48">Last 48 hours</option>
-                    <option value="168">Last 7 days</option>
+                </select>
+                <select id="graphIntervalFilter" class="filter-select" onchange="loadAvailabilityGraph()">
+                    <option value="1">1 minute blocks</option>
+                    <option value="5" selected>5 minute blocks</option>
+                    <option value="15">15 minute blocks</option>
+                    <option value="60">1 hour blocks</option>
                 </select>
             </div>
-            <div id="timelineContainer" class="timeline-container">
-                <div class="loading">Loading timeline...</div>
+            <div id="availabilityGraph" class="availability-graph">
+                <div class="loading">Loading graph...</div>
             </div>
         </div>
     </div>
@@ -363,7 +446,7 @@
         }
 
         function updateProductFilters() {
-            const filters = ['productFilter', 'changeProductFilter'];
+            const filters = ['changeProductFilter'];
             filters.forEach(filterId => {
                 const select = document.getElementById(filterId);
                 select.innerHTML = '<option value="">All Products</option>';
@@ -377,7 +460,7 @@
         }
 
         function updateStoreFilters() {
-            const filters = ['storeFilter', 'changeStoreFilter'];
+            const filters = ['changeStoreFilter'];
             filters.forEach(filterId => {
                 const select = document.getElementById(filterId);
                 select.innerHTML = '<option value="">All Stores</option>';
@@ -412,6 +495,7 @@
                         </div>
                         ${item.status_message ? `<div class="status-message">${item.status_message}</div>` : ''}
                         <div class="last-checked">Last checked: ${item.checked_at ? formatTimeAgo(item.checked_at) : 'Never'}</div>
+                        ${item.last_available_at ? `<div class="last-checked" style="color: #34c759;">Last in stock: ${formatDateTime(item.last_available_at)}</div>` : '<div class="last-checked" style="color: #ff3b30;">Never in stock</div>'}
                     </div>
                 `).join('');
             } catch (error) {
@@ -420,42 +504,140 @@
             }
         }
 
-        async function loadTimeline() {
-            const productId = document.getElementById('productFilter').value;
-            const storeId = document.getElementById('storeFilter').value;
-            const hours = document.getElementById('hoursFilter').value;
+        async function loadAvailabilityGraph() {
+            const hours = document.getElementById('graphHoursFilter').value;
+            const interval = parseInt(document.getElementById('graphIntervalFilter').value);
 
             const params = new URLSearchParams();
-            if (productId) params.append('product_id', productId);
-            if (storeId) params.append('store_id', storeId);
             params.append('hours', hours);
 
             try {
                 const response = await fetch(`/api/availability-timeline?${params}`);
                 const data = await response.json();
 
-                const container = document.getElementById('timelineContainer');
+                const container = document.getElementById('availabilityGraph');
 
                 if (data.length === 0) {
                     container.innerHTML = '<div class="no-data">No timeline data available</div>';
                     return;
                 }
 
-                container.innerHTML = data.map(item => `
-                    <div class="timeline-item">
-                        <div class="timeline-time">${formatDateTime(item.checked_at)}</div>
-                        <div class="timeline-store">${item.store_name}</div>
-                        <div class="timeline-status">
-                            <div class="status-indicator ${item.is_available ? 'available' : 'unavailable'}"></div>
-                            <span>${item.is_available ? 'Available' : 'Not Available'}</span>
-                            ${item.status_message ? ` - ${item.status_message}` : ''}
+                // Group data by store and product
+                const groupedData = {};
+                data.forEach(item => {
+                    const key = `${item.store_name}|${item.product_name}`;
+                    if (!groupedData[key]) {
+                        groupedData[key] = {
+                            store: item.store_name,
+                            product: item.product_name,
+                            data: []
+                        };
+                    }
+                    groupedData[key].data.push({
+                        time: new Date(item.checked_at + (item.checked_at.includes('Z') ? '' : 'Z')),
+                        available: item.is_available,
+                        message: item.status_message
+                    });
+                });
+
+                // Create time blocks
+                const now = new Date();
+                const startTime = new Date(now - hours * 60 * 60 * 1000);
+                const totalMinutes = hours * 60;
+                const blocksCount = Math.ceil(totalMinutes / interval);
+
+                let graphHTML = '';
+
+                // Add time labels
+                const timeLabels = [];
+                for (let i = 0; i <= 4; i++) {
+                    const labelTime = new Date(startTime.getTime() + (totalMinutes * i / 4) * 60 * 1000);
+                    timeLabels.push(formatTimeLabel(labelTime));
+                }
+
+                Object.values(groupedData).forEach(group => {
+                    const blocks = [];
+
+                    for (let i = 0; i < blocksCount; i++) {
+                        const blockStart = new Date(startTime.getTime() + i * interval * 60 * 1000);
+                        const blockEnd = new Date(blockStart.getTime() + interval * 60 * 1000);
+
+                        // Find data points in this time block
+                        const blockData = group.data.filter(d =>
+                            d.time >= blockStart && d.time < blockEnd
+                        );
+
+                        let blockClass = 'no-data';
+                        let blockTooltip = `${formatTimeLabel(blockStart)} - ${formatTimeLabel(blockEnd)}: No data`;
+
+                        if (blockData.length > 0) {
+                            // Use the most recent status in the block
+                            const latestData = blockData[blockData.length - 1];
+                            blockClass = latestData.available ? 'available' : 'unavailable';
+                            blockTooltip = `${formatTimeLabel(blockStart)} - ${formatTimeLabel(blockEnd)}: ${latestData.available ? 'Available' : 'Not Available'}`;
+                            if (latestData.message) {
+                                blockTooltip += ` (${latestData.message})`;
+                            }
+                        }
+
+                        blocks.push(`<div class="time-block ${blockClass}" title="${blockTooltip}"></div>`);
+                    }
+
+                    graphHTML += `
+                        <div class="graph-row">
+                            <div class="graph-label">${group.store}</div>
+                            <div class="graph-blocks">
+                                ${blocks.join('')}
+                            </div>
                         </div>
+                    `;
+                });
+
+                graphHTML += `
+                    <div class="graph-timeline">
+                        ${timeLabels.map(label => `<span>${label}</span>`).join('')}
                     </div>
-                `).join('');
+                `;
+
+                container.innerHTML = graphHTML || '<div class="no-data">No data to display</div>';
+
+                // Add hover tooltip
+                document.querySelectorAll('.time-block').forEach(block => {
+                    let tooltip = null;
+
+                    block.addEventListener('mouseenter', (e) => {
+                        tooltip = document.createElement('div');
+                        tooltip.className = 'tooltip';
+                        tooltip.textContent = e.target.title;
+                        document.body.appendChild(tooltip);
+
+                        const rect = e.target.getBoundingClientRect();
+                        tooltip.style.left = rect.left + rect.width / 2 - tooltip.offsetWidth / 2 + 'px';
+                        tooltip.style.top = rect.top - tooltip.offsetHeight - 10 + 'px';
+
+                        setTimeout(() => tooltip.classList.add('show'), 10);
+                    });
+
+                    block.addEventListener('mouseleave', () => {
+                        if (tooltip) {
+                            tooltip.remove();
+                            tooltip = null;
+                        }
+                    });
+                });
             } catch (error) {
-                console.error('Error loading timeline:', error);
-                document.getElementById('timelineContainer').innerHTML = '<div class="no-data">Error loading timeline</div>';
+                console.error('Error loading graph:', error);
+                document.getElementById('availabilityGraph').innerHTML = '<div class="no-data">Error loading graph</div>';
             }
+        }
+
+        function formatTimeLabel(date) {
+            return date.toLocaleString('ja-JP', {
+                timeZone: 'Asia/Tokyo',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
         }
 
         async function loadChanges() {
@@ -539,7 +721,7 @@
 
         async function refreshData() {
             await loadCurrentStatus();
-            await loadTimeline();
+            await loadAvailabilityGraph();
             await loadChanges();
         }
 

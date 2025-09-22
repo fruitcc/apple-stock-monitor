@@ -248,7 +248,8 @@ class StockDatabase:
                 s.store_name,
                 h.is_available,
                 h.status_message,
-                h.checked_at
+                h.checked_at,
+                last_avail.last_available_at
             FROM products p
             CROSS JOIN stores s
             LEFT JOIN (
@@ -256,6 +257,12 @@ class StockDatabase:
                        ROW_NUMBER() OVER (PARTITION BY product_id, store_id ORDER BY checked_at DESC) as rn
                 FROM availability_history
             ) h ON h.product_id = p.id AND h.store_id = s.id AND h.rn = 1
+            LEFT JOIN (
+                SELECT product_id, store_id, MAX(checked_at) as last_available_at
+                FROM availability_history
+                WHERE is_available = 1
+                GROUP BY product_id, store_id
+            ) last_avail ON last_avail.product_id = p.id AND last_avail.store_id = s.id
             ORDER BY p.product_name, s.store_name
         """)
 
