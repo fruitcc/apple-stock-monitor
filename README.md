@@ -91,7 +91,9 @@ python3 osaka_stores_monitor.py &  # Run monitor in background
 python3 app.py &                   # Run Flask web app
 ```
 
-Access the web dashboard at: **http://127.0.0.1:5000**
+Access the web dashboard at: **http://127.0.0.1:5001**
+
+> **Note:** The web interface runs on port 5001 to avoid conflicts with macOS AirPlay Receiver (which uses port 5000)
 
 The dashboard provides:
 - **Current Status**: Real-time availability status for all products and stores

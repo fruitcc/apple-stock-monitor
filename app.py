@@ -118,6 +118,6 @@ if __name__ == '__main__':
     # Check if running in production
     import sys
     if '--production' in sys.argv:
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        app.run(host='0.0.0.0', port=5001, debug=False)
     else:
-        app.run(debug=True, port=5000)
+        app.run(debug=True, port=5001)
