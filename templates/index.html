@@ -135,10 +135,13 @@
         }
 
         .graph-label {
+            width: 150px;
             min-width: 150px;
             font-size: 14px;
             font-weight: 500;
             color: #1d1d1f;
+            padding-right: 10px;
+            text-align: right;
         }
 
         .graph-blocks {
@@ -513,7 +516,7 @@
         }
 
         async function loadAvailabilityGraph() {
-            const hours = document.getElementById('graphHoursFilter').value;
+            const hours = parseFloat(document.getElementById('graphHoursFilter').value);
             const interval = parseInt(document.getElementById('graphIntervalFilter').value);
 
             const params = new URLSearchParams();
@@ -530,61 +533,63 @@
                     return;
                 }
 
-                // Group data by store and product
+                // Group data by store
                 const groupedData = {};
                 data.forEach(item => {
-                    const key = `${item.store_name}|${item.product_name}`;
+                    const key = item.store_name;
                     if (!groupedData[key]) {
                         groupedData[key] = {
                             store: item.store_name,
-                            product: item.product_name,
-                            data: []
+                            dataPoints: {}
                         };
                     }
-                    groupedData[key].data.push({
-                        time: new Date(item.checked_at + (item.checked_at.includes('Z') ? '' : 'Z')),
+                    // Store each data point with timestamp as key
+                    const timestamp = new Date(item.checked_at + (item.checked_at.includes('Z') ? '' : 'Z'));
+                    groupedData[key].dataPoints[timestamp.getTime()] = {
+                        time: timestamp,
                         available: item.is_available,
                         message: item.status_message
-                    });
+                    };
                 });
 
                 // Create time blocks
                 const now = new Date();
-                const startTime = new Date(now - hours * 60 * 60 * 1000);
+                const startTime = new Date(now.getTime() - hours * 60 * 60 * 1000);
+                const endTime = now;
                 const totalMinutes = hours * 60;
                 const blocksCount = Math.ceil(totalMinutes / interval);
 
                 let graphHTML = '';
 
-                // Add time labels
-                const timeLabels = [];
-                for (let i = 0; i <= 4; i++) {
-                    const labelTime = new Date(startTime.getTime() + (totalMinutes * i / 4) * 60 * 1000);
-                    timeLabels.push(formatTimeLabel(labelTime));
-                }
-
+                // Process each store
                 Object.values(groupedData).forEach(group => {
                     const blocks = [];
+
+                    // Sort data points by time
+                    const sortedData = Object.values(group.dataPoints).sort((a, b) => a.time - b.time);
 
                     for (let i = 0; i < blocksCount; i++) {
                         const blockStart = new Date(startTime.getTime() + i * interval * 60 * 1000);
                         const blockEnd = new Date(blockStart.getTime() + interval * 60 * 1000);
 
-                        // Find data points in this time block
-                        const blockData = group.data.filter(d =>
-                            d.time >= blockStart && d.time < blockEnd
-                        );
+                        // Find the most recent data point before or during this block
+                        let relevantData = null;
+                        for (let j = sortedData.length - 1; j >= 0; j--) {
+                            if (sortedData[j].time <= blockEnd) {
+                                relevantData = sortedData[j];
+                                break;
+                            }
+                        }
 
                         let blockClass = 'no-data';
                         let blockTooltip = `${formatTimeLabel(blockStart)} - ${formatTimeLabel(blockEnd)}: No data`;
 
-                        if (blockData.length > 0) {
-                            // Use the most recent status in the block
-                            const latestData = blockData[blockData.length - 1];
-                            blockClass = latestData.available ? 'available' : 'unavailable';
-                            blockTooltip = `${formatTimeLabel(blockStart)} - ${formatTimeLabel(blockEnd)}: ${latestData.available ? 'Available' : 'Not Available'}`;
-                            if (latestData.message) {
-                                blockTooltip += ` (${latestData.message})`;
+                        // Only show data if we have a data point and it's not too old
+                        if (relevantData && (blockEnd - relevantData.time) < 30 * 60 * 1000) { // Within 30 minutes
+                            blockClass = relevantData.available ? 'available' : 'unavailable';
+                            blockTooltip = `${formatTimeLabel(blockStart)} - ${formatTimeLabel(blockEnd)}: ${relevantData.available ? 'Available' : 'Not Available'}`;
+                            if (relevantData.message) {
+                                blockTooltip += ` (${relevantData.message})`;
                             }
                         }
 
@@ -600,6 +605,13 @@
                         </div>
                     `;
                 });
+
+                // Add time labels
+                const timeLabels = [];
+                for (let i = 0; i <= 4; i++) {
+                    const labelTime = new Date(startTime.getTime() + (totalMinutes * i / 4) * 60 * 1000);
+                    timeLabels.push(formatTimeLabel(labelTime));
+                }
 
                 graphHTML += `
                     <div class="graph-timeline">
