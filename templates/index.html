@@ -374,6 +374,14 @@
             All times displayed in Japan Standard Time (JST)
         </p>
 
+        <!-- Notification Settings -->
+        <div id="notificationBanner" style="text-align: center; margin-bottom: 20px; padding: 15px; background: #007aff; color: white; border-radius: 8px; display: none;">
+            <span style="font-weight: 500;">Enable browser notifications to get instant alerts when stock becomes available!</span>
+            <button onclick="requestNotificationPermission()" style="margin-left: 15px; padding: 6px 12px; background: white; color: #007aff; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">
+                Enable Notifications
+            </button>
+        </div>
+
         <!-- Current Status Section -->
         <div class="timeline-section">
             <div class="section-title">
@@ -435,6 +443,8 @@
     <script>
         let products = [];
         let stores = [];
+        let previousStatus = {};  // Track previous status to detect changes
+        let notificationPermission = 'default';
 
         async function loadProducts() {
             try {
@@ -488,6 +498,9 @@
             try {
                 const response = await fetch('/api/current-status');
                 const data = await response.json();
+
+                // Check for stock changes and send notifications
+                checkForStockChanges(data);
 
                 const statusGrid = document.getElementById('statusGrid');
 
@@ -757,11 +770,133 @@
             await loadChanges();
         }
 
+        // Request notification permission
+        async function requestNotificationPermission() {
+            if ('Notification' in window) {
+                notificationPermission = await Notification.requestPermission();
+                if (notificationPermission === 'granted') {
+                    console.log('Notification permission granted');
+                    // Hide the banner
+                    document.getElementById('notificationBanner').style.display = 'none';
+                    // Show test notification
+                    new Notification('🍎 Apple Stock Monitor', {
+                        body: 'Notifications enabled! You will be alerted when products become available.',
+                        icon: 'https://www.apple.com/favicon.ico',
+                        badge: 'https://www.apple.com/favicon.ico',
+                        requireInteraction: false
+                    });
+                } else if (notificationPermission === 'denied') {
+                    // Hide the banner if denied
+                    document.getElementById('notificationBanner').style.display = 'none';
+                    alert('Notifications were denied. You can enable them in your browser settings.');
+                }
+            }
+        }
+
+        // Check for stock changes and send notifications
+        function checkForStockChanges(currentData) {
+            if (!currentData || currentData.length === 0) return;
+
+            currentData.forEach(item => {
+                const key = `${item.store_name}_${item.product_name}`;
+                const wasAvailable = previousStatus[key]?.is_available || false;
+                const isNowAvailable = item.is_available || false;
+
+                // Check if status changed from unavailable to available
+                if (!wasAvailable && isNowAvailable) {
+                    sendStockNotification(item.store_name, item.product_name);
+                    playNotificationSound();
+                    flashPageTitle();
+                }
+
+                // Update previous status
+                previousStatus[key] = {
+                    is_available: isNowAvailable,
+                    status_message: item.status_message
+                };
+            });
+        }
+
+        // Send browser notification
+        function sendStockNotification(storeName, productName) {
+            if (notificationPermission === 'granted') {
+                const notification = new Notification('🎉 Stock Available!', {
+                    body: `${productName} is now available at ${storeName}!`,
+                    icon: 'https://www.apple.com/favicon.ico',
+                    badge: 'https://www.apple.com/favicon.ico',
+                    requireInteraction: true,
+                    vibrate: [200, 100, 200],
+                    tag: `stock-${storeName}`,
+                    data: {
+                        url: 'https://www.apple.com/jp/shop/buy-iphone/iphone-17-pro'
+                    }
+                });
+
+                // Open Apple Store when notification is clicked
+                notification.onclick = function(event) {
+                    event.preventDefault();
+                    window.open(notification.data.url, '_blank');
+                    notification.close();
+                };
+
+                // Auto-close after 10 seconds
+                setTimeout(() => notification.close(), 10000);
+            }
+        }
+
+        // Play notification sound
+        function playNotificationSound() {
+            // Create an audio context for a beep sound
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = 880; // A5 note
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        // Flash page title to get attention
+        function flashPageTitle() {
+            let originalTitle = document.title;
+            let isFlashing = true;
+            let flashCount = 0;
+
+            const flashInterval = setInterval(() => {
+                if (flashCount >= 10) {
+                    clearInterval(flashInterval);
+                    document.title = originalTitle;
+                    return;
+                }
+
+                document.title = isFlashing ? '🎉 STOCK AVAILABLE!' : originalTitle;
+                isFlashing = !isFlashing;
+                flashCount++;
+            }, 1000);
+        }
+
         // Initial load
         async function init() {
             await loadProducts();
             await loadStores();
             await refreshData();
+
+            // Show notification banner if permissions not granted
+            if ('Notification' in window) {
+                notificationPermission = Notification.permission;
+                if (notificationPermission === 'default') {
+                    document.getElementById('notificationBanner').style.display = 'block';
+                } else if (notificationPermission === 'granted') {
+                    console.log('Notifications already enabled');
+                }
+            }
         }
 
         // Load data on page load
