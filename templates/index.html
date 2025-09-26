@@ -496,11 +496,31 @@
 
         async function loadCurrentStatus() {
             try {
-                const response = await fetch('/api/current-status');
+                // Add cache-busting timestamp to prevent stale data
+                const response = await fetch(`/api/current-status?t=${Date.now()}`, {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
                 const data = await response.json();
 
-                // Check for stock changes and send notifications
-                checkForStockChanges(data);
+                // Initialize previousStatus on first load if empty
+                const isFirstLoad = Object.keys(previousStatus).length === 0;
+                if (isFirstLoad) {
+                    // Initialize without triggering notifications
+                    data.forEach(item => {
+                        const key = `${item.store_name}_${item.product_name}`;
+                        previousStatus[key] = {
+                            is_available: item.is_available,
+                            status_message: item.status_message
+                        };
+                    });
+                } else {
+                    // Check for stock changes and send notifications
+                    checkForStockChanges(data);
+                }
 
                 const statusGrid = document.getElementById('statusGrid');
 
@@ -775,7 +795,6 @@
             if ('Notification' in window) {
                 notificationPermission = await Notification.requestPermission();
                 if (notificationPermission === 'granted') {
-                    console.log('Notification permission granted');
                     // Hide the banner
                     document.getElementById('notificationBanner').style.display = 'none';
                     // Show test notification
@@ -795,7 +814,9 @@
 
         // Check for stock changes and send notifications
         function checkForStockChanges(currentData) {
-            if (!currentData || currentData.length === 0) return;
+            if (!currentData || currentData.length === 0) {
+                return;
+            }
 
             currentData.forEach(item => {
                 const key = `${item.store_name}_${item.product_name}`;
@@ -820,27 +841,31 @@
         // Send browser notification
         function sendStockNotification(storeName, productName) {
             if (notificationPermission === 'granted') {
-                const notification = new Notification('🎉 Stock Available!', {
-                    body: `${productName} is now available at ${storeName}!`,
-                    icon: 'https://www.apple.com/favicon.ico',
-                    badge: 'https://www.apple.com/favicon.ico',
-                    requireInteraction: true,
-                    vibrate: [200, 100, 200],
-                    tag: `stock-${storeName}`,
-                    data: {
-                        url: 'https://www.apple.com/jp/shop/buy-iphone/iphone-17-pro'
-                    }
-                });
+                try {
+                    const notification = new Notification('🎉 Stock Available!', {
+                        body: `${productName} is now available at ${storeName}!`,
+                        icon: 'https://www.apple.com/favicon.ico',
+                        badge: 'https://www.apple.com/favicon.ico',
+                        requireInteraction: true,
+                        vibrate: [200, 100, 200],
+                        tag: `stock-${storeName}`,
+                        data: {
+                            url: 'https://www.apple.com/jp/shop/buy-iphone/iphone-17-pro'
+                        }
+                    });
 
-                // Open Apple Store when notification is clicked
-                notification.onclick = function(event) {
-                    event.preventDefault();
-                    window.open(notification.data.url, '_blank');
-                    notification.close();
-                };
+                    // Open Apple Store when notification is clicked
+                    notification.onclick = function(event) {
+                        event.preventDefault();
+                        window.open(notification.data.url, '_blank');
+                        notification.close();
+                    };
 
-                // Auto-close after 10 seconds
-                setTimeout(() => notification.close(), 10000);
+                    // Auto-close after 10 seconds
+                    setTimeout(() => notification.close(), 10000);
+                } catch (error) {
+                    console.error('Error creating notification:', error);
+                }
             }
         }
 
@@ -886,17 +911,18 @@
         async function init() {
             await loadProducts();
             await loadStores();
-            await refreshData();
 
-            // Show notification banner if permissions not granted
+            // Initialize notification permission state
             if ('Notification' in window) {
                 notificationPermission = Notification.permission;
+
                 if (notificationPermission === 'default') {
                     document.getElementById('notificationBanner').style.display = 'block';
-                } else if (notificationPermission === 'granted') {
-                    console.log('Notifications already enabled');
                 }
             }
+
+            // Load data after setting up permissions
+            await refreshData();
         }
 
         // Load data on page load

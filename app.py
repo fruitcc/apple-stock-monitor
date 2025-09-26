@@ -20,7 +20,11 @@ def index():
 def get_current_status():
     """Get current availability status for all products and stores"""
     status = db.get_current_status()
-    return jsonify(status)
+    response = jsonify(status)
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/api/availability-timeline')
 def get_availability_timeline():
