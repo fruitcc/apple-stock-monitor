@@ -55,6 +55,16 @@ class MultiEmailNotifier:
     def send_pickup_alert(self, store_name, product_name, product_url, status):
         """Send email to all recipients when product is available for pickup"""
 
+        # Log the email trigger event
+        logger.info("=" * 60)
+        logger.info("📧 EMAIL NOTIFICATION TRIGGERED")
+        logger.info(f"Store: Apple {store_name}")
+        logger.info(f"Product: {product_name}")
+        logger.info(f"Status: {status}")
+        logger.info(f"Recipients: {', '.join(self.email_to_list)}")
+        logger.info(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 60)
+
         if not self.is_configured:
             logger.info("=" * 60)
             logger.info("📧 EMAIL SIMULATION (not configured)")
@@ -173,27 +183,41 @@ Monitoring: 心斎橋 & 梅田 stores
                         # Send message
                         server.send_message(msg)
                         successful_sends.append(email_to)
-                        logger.info(f"✅ Email sent to {email_to}")
+                        logger.info(f"✅ Email successfully sent to {email_to}")
 
                     except Exception as e:
                         failed_sends.append(email_to)
                         logger.error(f"❌ Failed to send to {email_to}: {e}")
 
             # Report results
+            logger.info("=" * 60)
+            logger.info("📧 EMAIL NOTIFICATION SUMMARY")
             if successful_sends:
-                logger.info(f"Successfully sent to {len(successful_sends)} recipient(s): {', '.join(successful_sends)}")
+                logger.info(f"✅ Successfully sent to {len(successful_sends)} recipient(s): {', '.join(successful_sends)}")
             if failed_sends:
-                logger.error(f"Failed to send to {len(failed_sends)} recipient(s): {', '.join(failed_sends)}")
+                logger.error(f"❌ Failed to send to {len(failed_sends)} recipient(s): {', '.join(failed_sends)}")
+            logger.info(f"Total attempts: {len(self.email_to_list)}")
+            logger.info(f"Success rate: {len(successful_sends)}/{len(self.email_to_list)}")
+            logger.info("=" * 60)
 
             self.last_notification_time = datetime.now()
             return len(successful_sends) > 0
 
-        except smtplib.SMTPAuthenticationError:
-            logger.error("❌ Email authentication failed. Check your EMAIL_FROM and EMAIL_PASSWORD in .env")
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error("=" * 60)
+            logger.error("❌ EMAIL AUTHENTICATION FAILED")
+            logger.error(f"Error: {e}")
+            logger.error("Check your EMAIL_FROM and EMAIL_PASSWORD in .env")
+            logger.error("=" * 60)
             return False
 
         except Exception as e:
-            logger.error(f"❌ Failed to connect to email server: {e}")
+            logger.error("=" * 60)
+            logger.error("❌ EMAIL SERVER CONNECTION FAILED")
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Error details: {e}")
+            logger.error(f"SMTP Server: {self.smtp_server}:{self.smtp_port}")
+            logger.error("=" * 60)
             return False
 
     def test_connection(self):

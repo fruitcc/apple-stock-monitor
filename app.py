@@ -4,6 +4,7 @@ from flask import Flask, render_template, jsonify, request
 from datetime import datetime, timedelta
 import sqlite3
 import pytz
+import logging
 from database import StockDatabase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from multi_email_notifier import MultiEmailNotifier
@@ -13,6 +14,13 @@ app = Flask(__name__)
 # Support for reverse proxy with subdirectory
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 db = StockDatabase()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 @app.route('/')
 def index():
@@ -70,8 +78,15 @@ def get_stores():
 @app.route('/api/send-test-email', methods=['POST'])
 def send_test_email():
     """Send a test email notification"""
+    logger.info("=" * 60)
+    logger.info("TEST EMAIL REQUEST RECEIVED")
+    logger.info(f"Request from: {request.remote_addr}")
+    logger.info(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("=" * 60)
+
     try:
         # Initialize email notifier
+        logger.info("Initializing email notifier...")
         notifier = MultiEmailNotifier()
 
         # Test data
@@ -80,21 +95,25 @@ def send_test_email():
         product_url = "https://www.apple.com/jp/shop/buy-iphone/iphone-17-pro"
         status = "Test notification - System is working correctly!"
 
+        logger.info("Sending test notification...")
         # Send the test notification
         result = notifier.send_pickup_alert(store_name, product_name, product_url, status)
 
         if result:
+            logger.info("✅ Test email API: Success")
             return jsonify({
                 'success': True,
                 'message': f'Test email sent to {os.getenv("EMAIL_TO")}'
             })
         else:
+            logger.error("❌ Test email API: Failed to send")
             return jsonify({
                 'success': False,
                 'error': 'Failed to send test email'
             })
 
     except Exception as e:
+        logger.error(f"❌ Test email API: Exception - {e}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
