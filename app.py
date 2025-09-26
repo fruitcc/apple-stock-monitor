@@ -6,6 +6,8 @@ import sqlite3
 import pytz
 from database import StockDatabase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from multi_email_notifier import MultiEmailNotifier
+import os
 
 app = Flask(__name__)
 # Support for reverse proxy with subdirectory
@@ -64,6 +66,39 @@ def get_stores():
     """Get all tracked stores"""
     stores = db.get_all_stores()
     return jsonify(stores)
+
+@app.route('/api/send-test-email', methods=['POST'])
+def send_test_email():
+    """Send a test email notification"""
+    try:
+        # Initialize email notifier
+        notifier = MultiEmailNotifier()
+
+        # Test data
+        store_name = "Test Store"
+        product_name = "iPhone 17 Pro Max 256GB (Test)"
+        product_url = "https://www.apple.com/jp/shop/buy-iphone/iphone-17-pro"
+        status = "Test notification - System is working correctly!"
+
+        # Send the test notification
+        result = notifier.send_pickup_alert(store_name, product_name, product_url, status)
+
+        if result:
+            return jsonify({
+                'success': True,
+                'message': f'Test email sent to {os.getenv("EMAIL_TO")}'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send test email'
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
 
 def convert_to_jst(datetime_str):
     """Convert UTC datetime string to JST"""
