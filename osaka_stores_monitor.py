@@ -98,9 +98,7 @@ class OsakaStoresMonitor:
             # We'll use a specific set rather than extracting all variants
 
             orange_256gb_parts = [
-                "MG8D4J/A",  # iPhone 17 Pro Max 256GB Orange (primary)
-                "MFY84J/A",  # Alternative part number for same model
-                "MFYH4J/A",  # Another variant code
+                "MFY94J/A",  # iPhone 17 Pro Max 256GB Orange - correct part number
             ]
 
             logger.info(f"Checking ONLY Orange 256GB variant part numbers: {', '.join(orange_256gb_parts)}")
@@ -301,9 +299,9 @@ class OsakaStoresMonitor:
 
         if not self.product_parts:
             logger.error("Failed to extract product parts. Using Orange 256GB defaults.")
-            # Use specific Orange 256GB iPhone 17 Pro Max part numbers
-            self.product_parts = ["MG8D4J/A", "MFY84J/A", "MFYH4J/A"]
-            logger.info(f"Using Orange 256GB part numbers: {', '.join(self.product_parts)}")
+            # Use specific Orange 256GB iPhone 17 Pro Max part number
+            self.product_parts = ["MFY94J/A"]
+            logger.info(f"Using Orange 256GB part number: {', '.join(self.product_parts)}")
 
         check_count = 0
 
