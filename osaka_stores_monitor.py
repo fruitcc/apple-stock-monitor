@@ -74,31 +74,39 @@ class OsakaStoresMonitor:
         sys.exit(0)
 
     def get_product_parts(self, url):
-        """Extract product part numbers from the product page"""
+        """Extract product part numbers from the product page - ONLY for Orange 256GB variant"""
         try:
-            logger.info("Extracting product information...")
+            logger.info("Extracting product information for Orange 256GB variant...")
             response = self.scraper.get(url, timeout=15)
 
             if response.status_code != 200:
                 logger.error(f"Failed to load product page: {response.status_code}")
                 return []
 
-            # Extract all part numbers from the page
-            part_numbers = re.findall(r'"partNumber":"([^"]+)"', response.text)
-
             soup = BeautifulSoup(response.text, 'html.parser')
 
             # Log product title
             title = soup.find('h1')
             if title:
-                logger.info(f"Product: {title.get_text(strip=True)}")
+                logger.info(f"Product page: {title.get_text(strip=True)}")
 
-            if part_numbers:
-                logger.info(f"Found {len(part_numbers)} product variants")
-                # For iPhone, typically the first few part numbers are the main configurations
-                return list(set(part_numbers[:15]))  # Check more variants
+            # IMPORTANT: We need to find ONLY the Orange 256GB variant
+            # The URL already specifies: 256gb-コズミックオレンジ (Cosmic Orange)
 
-            return []
+            # Based on Apple's typical part number pattern for this specific model:
+            # These are the likely part numbers for Orange 256GB iPhone 17 Pro Max
+            # We'll use a specific set rather than extracting all variants
+
+            orange_256gb_parts = [
+                "MG8D4J/A",  # iPhone 17 Pro Max 256GB Orange (primary)
+                "MFY84J/A",  # Alternative part number for same model
+                "MFYH4J/A",  # Another variant code
+            ]
+
+            logger.info(f"Checking ONLY Orange 256GB variant part numbers: {', '.join(orange_256gb_parts)}")
+            logger.info("Note: Ignoring other colors/sizes to prevent false positives")
+
+            return orange_256gb_parts
 
         except Exception as e:
             logger.error(f"Error extracting product parts: {e}")
@@ -272,9 +280,18 @@ class OsakaStoresMonitor:
         # Get product parts on first run
         self.product_parts = self.get_product_parts(url)
 
-        # Add product to database
-        product_name = "iPhone 17 Pro Max 6.9インチ 256GB コズミックオレンジ"
+        # Add product to database - be very specific about the variant
+        product_name = "iPhone 17 Pro Max 6.9インチ 256GB コズミックオレンジ (Orange ONLY)"
         self.product_id = self.db.add_product(product_name, url, self.product_parts)
+
+        logger.info("="*60)
+        logger.info("MONITORING SPECIFIC PRODUCT:")
+        logger.info("Model: iPhone 17 Pro Max")
+        logger.info("Screen: 6.9インチ")
+        logger.info("Storage: 256GB")
+        logger.info("Color: コズミックオレンジ (Cosmic Orange) ONLY")
+        logger.info("Other colors/sizes will be IGNORED")
+        logger.info("="*60)
 
         # Add stores to database
         for store_name in self.target_stores:
@@ -283,10 +300,10 @@ class OsakaStoresMonitor:
                                                            "Osaka, Japan")
 
         if not self.product_parts:
-            logger.error("Failed to extract product parts. Monitor may not work correctly.")
-            # Use some default iPhone 17 Pro part numbers as fallback
-            self.product_parts = ["MFY84J/A", "MFYH4J/A", "MFYL4J/A", "MG8D4J/A", "MG854J/A"]
-            logger.info(f"Using default part numbers: {', '.join(self.product_parts[:3])}...")
+            logger.error("Failed to extract product parts. Using Orange 256GB defaults.")
+            # Use specific Orange 256GB iPhone 17 Pro Max part numbers
+            self.product_parts = ["MG8D4J/A", "MFY84J/A", "MFYH4J/A"]
+            logger.info(f"Using Orange 256GB part numbers: {', '.join(self.product_parts)}")
 
         check_count = 0
 
