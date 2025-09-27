@@ -39,13 +39,14 @@ class OsakaStoresMonitor:
     def __init__(self):
         self.scraper = cloudscraper.create_scraper()
         self.running = True
-        self.email_sent_stores = set()  # Track which stores have sent notifications
         self.target_stores = ["心斎橋", "梅田"]  # Monitor both stores
         self.product_parts = []
         self.store_status = {}  # Track status for each store
         self.db = StockDatabase()  # Initialize database
         self.product_id = None
         self.store_ids = {}  # Store name to ID mapping
+        self.last_email_time = {}  # Track last email time per store
+        self.email_cooldown_minutes = 10  # Minimum 10 minutes between emails
 
         # Initialize email notifier
         try:
@@ -62,6 +63,7 @@ class OsakaStoresMonitor:
                 'available': False,
                 'status_message': 'Unknown'
             }
+            self.last_email_time[store] = None  # Track last email time per store
 
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
@@ -208,8 +210,27 @@ class OsakaStoresMonitor:
                 results[store] = (False, f"Error: {e}")
             return results
 
+    def should_send_email(self, store_name):
+        """Check if email should be sent based on cooldown period"""
+        if self.last_email_time.get(store_name) is None:
+            return True
+
+        time_since_last = datetime.now() - self.last_email_time[store_name]
+        minutes_passed = time_since_last.total_seconds() / 60
+
+        if minutes_passed < self.email_cooldown_minutes:
+            logger.info(f"  ⏰ Email cooldown active for {store_name}: {minutes_passed:.1f}/{self.email_cooldown_minutes} minutes passed")
+            return False
+
+        return True
+
     def send_notification(self, store_name, status):
         """Send notification when product becomes available at a store"""
+        # Check cooldown period
+        if not self.should_send_email(store_name):
+            logger.info(f"  Skipping email for {store_name} due to cooldown period")
+            return
+
         logger.info("=" * 60)
         logger.info(f"🎉 PICKUP NOW AVAILABLE at Apple {store_name}!")
         logger.info(f"Store: Apple {store_name}")
@@ -221,15 +242,18 @@ class OsakaStoresMonitor:
             product_name = "iPhone 17 Pro Max 6.9インチ 256GB コズミックオレンジ"
             product_url = "https://www.apple.com/jp/shop/buy-iphone/iphone-17-pro"
             try:
-                self.email_notifier.send_pickup_alert(store_name, product_name, product_url, status)
-                logger.info(f"✅ Email notification sent successfully")
+                result = self.email_notifier.send_pickup_alert(store_name, product_name, product_url, status)
+                if result:
+                    logger.info(f"✅ Email notification sent successfully")
+                    self.last_email_time[store_name] = datetime.now()
+                else:
+                    logger.error(f"❌ Email notification failed")
             except Exception as e:
                 logger.error(f"❌ Failed to send email notification: {e}")
         else:
             logger.warning("Email notifier not configured - notification not sent")
 
         logger.info("=" * 60)
-        self.email_sent_stores.add(store_name)
 
     def monitor(self, url, interval=None):
         """Main monitoring loop"""
@@ -240,7 +264,9 @@ class OsakaStoresMonitor:
         logger.info(f"Starting Apple Store Pickup Monitor for Osaka")
         logger.info(f"Target Stores: {', '.join([f'Apple {store}' for store in self.target_stores])}")
         logger.info(f"Check interval: {interval} seconds")
-        logger.info(f"Email: {os.getenv('EMAIL_TO', 'Not configured')}")
+        logger.info(f"Email cooldown: {self.email_cooldown_minutes} minutes")
+        logger.info(f"Email recipients: {os.getenv('EMAIL_TO', 'Not configured')}")
+        logger.info(f"Email policy: Only send when status changes from unavailable → available")
         logger.info("-" * 60)
 
         # Get product parts on first run
@@ -297,16 +323,17 @@ class OsakaStoresMonitor:
                 logger.info(f"Apple {store_name}: {status_icon} {status}")
 
                 # Check if status changed from unavailable to available
-                if available:
-                    if (self.store_status[store_name]['last_status'] == False or
-                        self.store_status[store_name]['last_status'] is None):
-                        if store_name not in self.email_sent_stores:
-                            self.send_notification(store_name, status)
-                else:
-                    # Reset notification flag when unavailable
-                    if self.store_status[store_name]['last_status'] == True:
-                        self.email_sent_stores.discard(store_name)
-                        logger.info(f"  (Product became unavailable at {store_name})")
+                # Only send email when:
+                # 1. Current status is available
+                # 2. Previous status was unavailable (False) - NOT None (first check)
+                # 3. Cooldown period has passed
+                if available and self.store_status[store_name]['last_status'] == False:
+                    logger.info(f"  📱 Status changed: unavailable → available at {store_name}")
+                    self.send_notification(store_name, status)
+                elif available and self.store_status[store_name]['last_status'] is None:
+                    logger.info(f"  🆕 First check - product available at {store_name} (no email sent)")
+                elif not available and self.store_status[store_name]['last_status'] == True:
+                    logger.info(f"  📴 Product became unavailable at {store_name}")
 
                 # Update last status
                 self.store_status[store_name]['last_status'] = available
